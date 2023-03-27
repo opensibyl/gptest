@@ -23,6 +23,10 @@ func Run(token string, path string, ctx context.Context) error {
 	config.IndexerType = object2.IndexerGolang
 	config.RunnerType = object2.RunnerGolang
 
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.MkdirAll(path, os.ModePerm)
+	}
+
 	log.Println("using local sibyl, starting ...")
 	go func() {
 		config := object.DefaultExecuteConfig()
