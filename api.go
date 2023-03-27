@@ -6,12 +6,9 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/html"
-	"github.com/gomarkdown/markdown/parser"
+	"github.com/opensibyl/sibyl2"
 	"github.com/opensibyl/sibyl2/pkg/server"
 	"github.com/opensibyl/sibyl2/pkg/server/object"
 	"github.com/opensibyl/squ/extractor"
@@ -63,8 +60,8 @@ func Run(token string, ctx context.Context) error {
 	err = client.Prepare()
 	PanicIfErr(err)
 
-	// 4. generate markdownTemplate
-	markdownTemplate := "# GPT EST report\n"
+	// 4. collect
+	cache := make(map[*sibyl2.FunctionWithPath]string)
 	for eachFile, eachFuncs := range diffMap {
 		for _, eachFunc := range eachFuncs {
 			log.Printf("gen case for %v in %v\n", eachFunc.GetName(), eachFile)
@@ -77,30 +74,82 @@ func Run(token string, ctx context.Context) error {
 			vertex, err := curIndexer.GetSibylCache().CallGraph.Graph.Vertex(funcDefs[0])
 			PanicIfErr(err)
 
-			askStr := vertex.Unit.Content
+			askStr := fmt.Sprintf(`
+Generate one case for this method:
+
+%s
+
+return me a code snippet only, with markdown wrapper, without any note.
+\n
+`, vertex.Unit.Content)
 
 			// collect relative info
 			referencedCalls := curIndexer.GetSibylCache().FindReverseCalls(vertex)
 			if len(referencedCalls) != 0 {
 				askStr += fmt.Sprintf(`
-it will called by:
+It will called by:
 %s
 `, referencedCalls[0].Unit.Content)
 			}
 
 			resp, err := client.Ask(askStr)
 			PanicIfErr(err)
-			log.Printf("req: %v\n, resp: %v\n", askStr, resp)
 
 			// generate markdownTemplate
-			markdownTemplate += fmt.Sprintf("## %v in %v\n", eachFunc.GetName(), eachFile)
-			markdownTemplate += fmt.Sprintf("### resp\n```%s\n%v\n```\n", strings.ToLower(eachFunc.GetLang()), resp)
+			cache[vertex] = resp
 		}
 	}
-	fmt.Println(markdownTemplate)
+
+	// 5. render
+	// embed it in html
+	final := ""
+	for funcInfo, content := range cache {
+		final += fmt.Sprintf(`
+## %s in %s
+
+%s
+
+---
+
+`, funcInfo.Name, funcInfo.Path, fmt.Sprintf(".remark-code.hljs[```\n\t\t%s\n```]", content))
+	}
+
+	htmlTemplate := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>GPTEST REPORT</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+%s
+
+</textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
+`, final)
 
 	// write to file
-	err = os.WriteFile("gpt_test_result.html", mdToHTML([]byte(markdownTemplate)), 0644)
+	err = os.WriteFile("gpt_test_result.html", []byte(htmlTemplate), 0644)
 	PanicIfErr(err)
 
 	return nil
@@ -110,18 +159,4 @@ func PanicIfErr(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func mdToHTML(md []byte) []byte {
-	// create markdown parser with extensions
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
-	p := parser.NewWithExtensions(extensions)
-	doc := p.Parse(md)
-
-	// create HTML renderer with extensions
-	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{Flags: htmlFlags}
-	renderer := html.NewRenderer(opts)
-
-	return markdown.Render(doc, renderer)
 }
