@@ -1,8 +1,10 @@
 package gptest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"os"
@@ -16,7 +18,7 @@ import (
 	object2 "github.com/opensibyl/squ/object"
 )
 
-func Run(token string, ctx context.Context) error {
+func Run(token string, path string, ctx context.Context) error {
 	config := object2.DefaultConfig()
 	config.IndexerType = object2.IndexerGolang
 	config.RunnerType = object2.RunnerGolang
@@ -100,56 +102,46 @@ It will called by:
 		}
 	}
 
-	// 5. render
-	// embed it in html
-	final := ""
-	for funcInfo, content := range cache {
-		final += fmt.Sprintf(`
-## %s in %s
+	// parse cache and generate html for each file
+	fileCache := make(map[string][]*sibyl2.FunctionWithPath)
+	for funcWithPath, htmlTemplate := range cache {
+		filePath := funcWithPath.Path
+		if _, ok := fileCache[filePath]; !ok {
+			fileCache[filePath] = []*sibyl2.FunctionWithPath{funcWithPath}
+		} else {
+			fileCache[filePath] = append(fileCache[filePath], funcWithPath)
+		}
 
-%s
-
----
-
-`, funcInfo.Name, funcInfo.Path, fmt.Sprintf(".remark-code.hljs[```\n\t\t%s\n```]", content))
+		// write to file
+		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", path, funcWithPath.Path, funcWithPath.Name), []byte(fmt.Sprintf("<html><body><code>%s</code></body></html>", htmlTemplate)), 0644)
+		PanicIfErr(err)
 	}
 
-	htmlTemplate := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>GPTEST REPORT</title>
-    <meta charset="utf-8">
-    <style>
-      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
-      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
-      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+	// generate index.html
+	indexTemplate := `
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<title>GPT Test Result</title>
+	</head>
+	<body>
+		<h1>GPT Test Result</h1>
+		<ul>
+		{{range $filePath, $funcs := .}}
+			<li><a href="{{ $filePath }}.html">{{ $filePath }}</a></li>
+		{{end}}
+		</ul>
+	</body>
+	</html>
+	`
+	tmpl, err := template.New("index").Parse(indexTemplate)
+	PanicIfErr(err)
 
-      body { font-family: 'Droid Serif'; }
-      h1, h2, h3 {
-        font-family: 'Yanone Kaffeesatz';
-        font-weight: normal;
-      }
-      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
-    </style>
-  </head>
-  <body>
-    <textarea id="source">
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, fileCache)
+	PanicIfErr(err)
 
-%s
-
-</textarea>
-    <script src="https://remarkjs.com/downloads/remark-latest.min.js">
-    </script>
-    <script>
-      var slideshow = remark.create();
-    </script>
-  </body>
-</html>
-`, final)
-
-	// write to file
-	err = os.WriteFile("gpt_test_result.html", []byte(htmlTemplate), 0644)
+	err = os.WriteFile(fmt.Sprintf("%s/index.html", path), buf.Bytes(), 0644)
 	PanicIfErr(err)
 
 	return nil

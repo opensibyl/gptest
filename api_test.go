@@ -6,7 +6,7 @@ import (
 )
 
 func TestApi(t *testing.T) {
-	err := Run("", context.Background())
+	err := Run("", ".", context.Background())
 	if err != nil {
 		panic(err)
 	}
