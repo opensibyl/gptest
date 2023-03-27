@@ -132,7 +132,9 @@ It will called by:
 		<h1>GPT Test Result</h1>
 		<ul>
 		{{range $filePath, $funcs := .}}
-			<li><a href="{{ $filePath }}.html">{{ $filePath }}</a></li>
+			{{range $func := $funcs}}
+			<li><a href="{{ $filePath }}_{{ $func.Name }}.html">{{ $func.Name }}</a></li>
+			{{end}}
 		{{end}}
 		</ul>
 	</body>
