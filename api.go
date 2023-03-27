@@ -2,6 +2,7 @@ package gptest
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -54,11 +55,14 @@ func Run(token string, ctx context.Context) error {
 	// 3. prepare data
 	client := GetClient(ClientGpt35)
 	client.SetToken(token)
+	err = client.Prepare()
+	PanicIfErr(err)
+
 	for eachFile, eachFuncs := range diffMap {
 		for _, eachFunc := range eachFuncs {
 			log.Printf("gen case for %v in %v\n", eachFunc.GetName(), eachFile)
 
-			// collect related objects
+			// collect itself
 			funcDefs := curIndexer.GetVertexesWithSignature(eachFunc.GetSignature())
 			if len(funcDefs) == 0 {
 				continue
@@ -66,9 +70,20 @@ func Run(token string, ctx context.Context) error {
 			vertex, err := curIndexer.GetSibylCache().CallGraph.Graph.Vertex(funcDefs[0])
 			PanicIfErr(err)
 
-			resp, err := client.Ask(vertex.Unit.Content)
+			askStr := vertex.Unit.Content
+
+			// collect relative info
+			referencedCalls := curIndexer.GetSibylCache().FindReverseCalls(vertex)
+			if len(referencedCalls) != 0 {
+				askStr += fmt.Sprintf(`
+it will called by:
+%s
+`, referencedCalls[0].Unit.Content)
+			}
+
+			resp, err := client.Ask(askStr)
 			PanicIfErr(err)
-			log.Printf("resp: %v\n", resp)
+			log.Printf("req: %v\n, resp: %v\n", askStr, resp)
 		}
 	}
 

@@ -24,10 +24,13 @@ func (c *ChatGPTClient) Prepare() error {
 			{
 				Role: `system`,
 				Content: fmt.Sprintf(`
+Here is a prompt:
+
 You are now a machine helping me write smoke test cases. 
 I will send you method declarations one by one, and you will return the corresponding test cases in the relevant language to me. 
-No need for explanations. 
-As simple as possible.
+No need for explanations. No any extra note.
+As simple as possible. One response for one case.
+
 Let's start from the next line.
 `),
 			},
