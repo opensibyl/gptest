@@ -232,6 +232,10 @@ github.com/golang/protobuf v1.5.2/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiu
 github.com/golang/snappy v0.0.3/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
 github.com/golang/snappy v0.0.4 h1:yAGX7huGHXlcLOEtBnF4w7FQwA26wojNCwOYAEhLjQM=
 github.com/golang/snappy v0.0.4/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
+github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a h1:AWZzzFrqyjYlRloN6edwTLTUbKxf5flLXNuTBDm3Ews=
+github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a/go.mod h1:JDGcbDT52eL4fju3sZ4TeHGsQwhG9nbDV21aMyhwPoA=
+github.com/gomarkdown/mdtohtml v0.0.0-20220720154245-d5126442bcee h1:K0HD10xVzFVXIvi//7xipQpvis/iIBShyjvkD43gs7E=
+github.com/gomarkdown/mdtohtml v0.0.0-20220720154245-d5126442bcee/go.mod h1:yQkMXrQ+Kf0W5KUNz8xIh1x14C3Hiyw/2j/zcUaDrwA=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/btree v1.1.2 h1:xf4v41cLI2Z6FxbKm+8Bu+m8ifhj15JuZ9sa0jZCMUU=

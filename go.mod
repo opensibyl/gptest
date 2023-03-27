@@ -45,6 +45,8 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/gomarkdown/markdown v0.0.0-20230322041520-c84983bdbf2a // indirect
+	github.com/gomarkdown/mdtohtml v0.0.0-20220720154245-d5126442bcee // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v22.11.23+incompatible // indirect
 	github.com/google/uuid v1.1.2 // indirect
