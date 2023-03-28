@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/opensibyl/sibyl2"
@@ -18,13 +19,14 @@ import (
 	object2 "github.com/opensibyl/squ/object"
 )
 
-func Run(token string, path string, ctx context.Context) error {
+func Run(token string, src string, outputPath string, ctx context.Context) error {
 	config := object2.DefaultConfig()
 	config.IndexerType = object2.IndexerGolang
 	config.RunnerType = object2.RunnerGolang
+	config.SrcDir = src
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.MkdirAll(path, os.ModePerm)
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		os.MkdirAll(outputPath, os.ModePerm)
 	}
 
 	log.Println("using local sibyl, starting ...")
@@ -81,12 +83,10 @@ func Run(token string, path string, ctx context.Context) error {
 			PanicIfErr(err)
 
 			askStr := fmt.Sprintf(`
-Generate one case for this method:
+Generate 1 case for this method:
 
 %s
 
-return me a code snippet only, without markdown wrapper, without any note.
-\n
 `, vertex.Unit.Content)
 
 			// collect relative info
@@ -98,6 +98,41 @@ It will called by:
 `, referencedCalls[0].Unit.Content)
 			}
 
+			apiClient, err := config.NewSibylClient()
+			PanicIfErr(err)
+
+			// params and returns
+			for _, each := range vertex.Parameters {
+				clazzWithPaths, _, err := apiClient.RegexQueryApi.ApiV1RegexClazzGet(ctx).
+					Repo(config.RepoInfo.RepoId).
+					Rev(config.RepoInfo.RevHash).
+					Field("name").
+					Regex(fmt.Sprintf("^%s$", each.Type)).Execute()
+				if err != nil {
+					// give up
+					log.Printf("failed to get class: %v\n", each.Type)
+					continue
+				}
+
+				// add related types to gpt
+				for _, eachClazz := range clazzWithPaths {
+					desc, err := eachClazz.MarshalJSON()
+					if err != nil {
+						// give up
+						log.Printf("failed to marshal: %v\n", eachClazz.Name)
+						continue
+					}
+					askStr += fmt.Sprintf(`
+related params and returns types:
+%s
+`, string(desc))
+				}
+			}
+
+			askStr += `
+return me a code snippet only, without markdown wrapper, without any note.
+`
+			log.Println(askStr)
 			resp, err := client.Ask(askStr)
 			PanicIfErr(err)
 
@@ -117,7 +152,14 @@ It will called by:
 		}
 
 		// write to file
-		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", path, funcWithPath.Path, funcWithPath.Name), []byte(fmt.Sprintf(`
+		p := filepath.Join(outputPath, funcWithPath.Path)
+		dirPath := filepath.Dir(p)
+		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+			err := os.MkdirAll(dirPath, os.ModePerm)
+			PanicIfErr(err)
+		}
+
+		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", dirPath, filepath.Base(funcWithPath.Path), funcWithPath.Name), []byte(fmt.Sprintf(`
 <html>
 <body>
 <pre class="prettyprint">
@@ -137,14 +179,14 @@ It will called by:
 	<!DOCTYPE html>
 	<html>
 	<head>
-		<title>GPT Test Result</title>
+		<title>GPT EST Result</title>
 	</head>
 	<body>
-		<h1>GPT Test Result</h1>
+		<h1>GPT EST Result</h1>
 		<ul>
 		{{range $filePath, $funcs := .}}
 			{{range $func := $funcs}}
-			<li><a href="{{ $filePath }}_{{ $func.Name }}.html">{{ $func.Name }}</a></li>
+			<li><a href="{{ $filePath }}_{{ $func.Name }}.html">{{ $filePath }}_{{ $func.Name }}</a></li>
 			{{end}}
 		{{end}}
 		</ul>
@@ -158,7 +200,7 @@ It will called by:
 	err = tmpl.Execute(&buf, fileCache)
 	PanicIfErr(err)
 
-	err = os.WriteFile(fmt.Sprintf("%s/index.html", path), buf.Bytes(), 0644)
+	err = os.WriteFile(fmt.Sprintf("%s/index.html", outputPath), buf.Bytes(), 0644)
 	PanicIfErr(err)
 
 	return nil
