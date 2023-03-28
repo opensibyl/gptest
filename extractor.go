@@ -47,6 +47,7 @@ func (g *GitExtractor) ExtractDiffMapWithRegex(_ context.Context) (DiffMap, erro
 	diffMap := make(DiffMap)
 	for _, each := range fileList {
 		if regex.MatchString(each) {
+			log.Printf("found file: %s", each)
 			diffMap[each] = nil
 		}
 	}
@@ -71,6 +72,7 @@ func (g *GitExtractor) ExtractDiffMethods(ctx context.Context) (map[string][]ope
 	for eachFile, eachLineList := range diffMap {
 		var functionWithSignatures []openapi.ObjectFunctionWithSignature
 		if eachLineList == nil {
+			log.Println("collect methods without line")
 			functionWithSignatures, _, err = g.apiClient.BasicQueryApi.
 				ApiV1FuncGet(ctx).
 				Repo(g.config.RepoInfo.RepoId).
@@ -78,6 +80,7 @@ func (g *GitExtractor) ExtractDiffMethods(ctx context.Context) (map[string][]ope
 				File(eachFile).
 				Execute()
 		} else {
+			log.Println("collect methods with line")
 			eachLineStrList := make([]string, 0, len(eachLineList))
 			for _, eachLine := range eachLineList {
 				eachLineStrList = append(eachLineStrList, strconv.Itoa(eachLine))
@@ -94,7 +97,6 @@ func (g *GitExtractor) ExtractDiffMethods(ctx context.Context) (map[string][]ope
 			return nil, err
 		}
 		influencedMethods[eachFile] = append(influencedMethods[eachFile], functionWithSignatures...)
-
 	}
 	return influencedMethods, nil
 }
