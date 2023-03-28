@@ -85,7 +85,7 @@ Generate one case for this method:
 
 %s
 
-return me a code snippet only, with markdown wrapper, without any note.
+return me a code snippet only, without markdown wrapper, without any note.
 \n
 `, vertex.Unit.Content)
 
@@ -117,7 +117,18 @@ It will called by:
 		}
 
 		// write to file
-		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", path, funcWithPath.Path, funcWithPath.Name), []byte(fmt.Sprintf("<html><body><code>%s</code></body></html>", htmlTemplate)), 0644)
+		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", path, funcWithPath.Path, funcWithPath.Name), []byte(fmt.Sprintf(`
+<html>
+<body>
+<pre class="prettyprint">
+<code>
+%s
+</code>
+</pre>
+<script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+</body>
+</html>
+`, htmlTemplate)), 0644)
 		PanicIfErr(err)
 	}
 
