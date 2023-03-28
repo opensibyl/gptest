@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -29,8 +30,38 @@ func (g *GitExtractor) ExtractDiffMap(_ context.Context) (DiffMap, error) {
 	return ext.Unified2Affected(patchRaw)
 }
 
+func (g *GitExtractor) ExtractDiffMapWithRegex(_ context.Context) (DiffMap, error) {
+	gitCmd := exec.Command("git", "ls-files")
+	gitCmd.Dir = g.config.SrcDir
+	fileListRaw, err := gitCmd.CombinedOutput()
+	if err != nil {
+		log.Printf("git cmd error: %s", fileListRaw)
+		panic(err)
+	}
+	fileList := strings.Split(string(fileListRaw), "\n")
+	regex, err := regexp.Compile(g.config.FileInclude)
+	if err != nil {
+		return nil, err
+	}
+
+	diffMap := make(DiffMap)
+	for _, each := range fileList {
+		if regex.MatchString(each) {
+			diffMap[each] = nil
+		}
+	}
+	return diffMap, nil
+}
+
 func (g *GitExtractor) ExtractDiffMethods(ctx context.Context) (map[string][]openapi.ObjectFunctionWithSignature, error) {
-	diffMap, err := g.ExtractDiffMap(ctx)
+	var diffMap DiffMap
+	var err error
+	if g.config.FileInclude == "" {
+		diffMap, err = g.ExtractDiffMap(ctx)
+	} else {
+		diffMap, err = g.ExtractDiffMapWithRegex(ctx)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -38,22 +69,32 @@ func (g *GitExtractor) ExtractDiffMethods(ctx context.Context) (map[string][]ope
 	// method level diff, and influence
 	influencedMethods := make(map[string][]openapi.ObjectFunctionWithSignature)
 	for eachFile, eachLineList := range diffMap {
-		eachLineStrList := make([]string, 0, len(eachLineList))
-		for _, eachLine := range eachLineList {
-			eachLineStrList = append(eachLineStrList, strconv.Itoa(eachLine))
+		var functionWithSignatures []openapi.ObjectFunctionWithSignature
+		if eachLineList == nil {
+			functionWithSignatures, _, err = g.apiClient.BasicQueryApi.
+				ApiV1FuncGet(ctx).
+				Repo(g.config.RepoInfo.RepoId).
+				Rev(g.config.RepoInfo.RevHash).
+				File(eachFile).
+				Execute()
+		} else {
+			eachLineStrList := make([]string, 0, len(eachLineList))
+			for _, eachLine := range eachLineList {
+				eachLineStrList = append(eachLineStrList, strconv.Itoa(eachLine))
+			}
+			functionWithSignatures, _, err = g.apiClient.BasicQueryApi.
+				ApiV1FuncGet(ctx).
+				Repo(g.config.RepoInfo.RepoId).
+				Rev(g.config.RepoInfo.RevHash).
+				File(eachFile).
+				Lines(strings.Join(eachLineStrList, ",")).
+				Execute()
 		}
-		functionWithSignatures, _, err := g.apiClient.BasicQueryApi.
-			ApiV1FuncGet(ctx).
-			Repo(g.config.RepoInfo.RepoId).
-			Rev(g.config.RepoInfo.RevHash).
-			File(eachFile).
-			Lines(strings.Join(eachLineStrList, ",")).
-			Execute()
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("%s %v => functions %d", eachFile, eachLineList, len(functionWithSignatures))
 		influencedMethods[eachFile] = append(influencedMethods[eachFile], functionWithSignatures...)
+
 	}
 	return influencedMethods, nil
 }

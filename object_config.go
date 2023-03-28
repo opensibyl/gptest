@@ -7,13 +7,14 @@ import (
 )
 
 type SharedConfig struct {
-	Token     string    `json:"token"`
-	SrcDir    string    `json:"srcDir"`
-	OutputDir string    `json:"outputDir"`
-	RepoInfo  *RepoInfo `json:"repoInfo"`
-	SibylUrl  string    `json:"sibylUrl"`
-	Before    string    `json:"before"`
-	After     string    `json:"after"`
+	Token       string    `json:"token"`
+	SrcDir      string    `json:"srcDir"`
+	OutputDir   string    `json:"outputDir"`
+	RepoInfo    *RepoInfo `json:"repoInfo"`
+	SibylUrl    string    `json:"sibylUrl"`
+	Before      string    `json:"before"`
+	After       string    `json:"after"`
+	FileInclude string    `json:"fileInclude"`
 }
 
 func DefaultConfig() SharedConfig {
@@ -25,6 +26,7 @@ func DefaultConfig() SharedConfig {
 		"http://127.0.0.1:9875",
 		"HEAD~1",
 		"HEAD",
+		"",
 	}
 }
 
