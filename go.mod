@@ -5,7 +5,6 @@ go 1.19
 require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/opensibyl/sibyl2 v0.15.5-0.20230314145957-f8ec60343755
-	github.com/opensibyl/squ v0.1.11
 	github.com/sashabaranov/go-openai v1.5.7
 )
 

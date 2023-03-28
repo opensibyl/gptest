@@ -17,7 +17,12 @@ func main() {
 		panic("token is empty")
 	}
 
-	err := gptest.Run(*token, *srcPath, *outputPath, context.Background())
+	config := gptest.DefaultConfig()
+	config.Token = *token
+	config.SrcDir = *srcPath
+	config.OutputDir = *outputPath
+
+	err := gptest.Run(config, context.Background())
 	if err != nil {
 		panic(err)
 	}

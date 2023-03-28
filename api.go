@@ -14,19 +14,15 @@ import (
 	"github.com/opensibyl/sibyl2"
 	"github.com/opensibyl/sibyl2/pkg/server"
 	"github.com/opensibyl/sibyl2/pkg/server/object"
-	"github.com/opensibyl/squ/extractor"
-	"github.com/opensibyl/squ/indexer"
-	object2 "github.com/opensibyl/squ/object"
 )
 
-func Run(token string, src string, outputPath string, ctx context.Context) error {
-	config := object2.DefaultConfig()
-	config.IndexerType = object2.IndexerGolang
-	config.RunnerType = object2.RunnerGolang
-	config.SrcDir = src
+func Run(config SharedConfig, ctx context.Context) error {
+	repoInfo, err := GetRepoInfoFromDir(config.SrcDir)
+	config.RepoInfo = repoInfo
 
-	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
-		os.MkdirAll(outputPath, os.ModePerm)
+	if _, err := os.Stat(config.OutputDir); os.IsNotExist(err) {
+		err := os.MkdirAll(config.OutputDir, os.ModePerm)
+		PanicIfErr(err)
 	}
 
 	log.Println("using local sibyl, starting ...")
@@ -46,8 +42,16 @@ func Run(token string, src string, outputPath string, ctx context.Context) error
 		}
 	}()
 
+	apiClient, err := config.NewSibylClient()
+	PanicIfErr(err)
+
 	// 1. index
-	curIndexer, err := indexer.GetIndexer(config.IndexerType, &config)
+	curIndexer := &BaseIndexer{
+		config:        &config,
+		apiClient:     apiClient,
+		caseSet:       make(map[string]interface{}),
+		vertexMapping: make(map[string]*map[string]interface{}),
+	}
 	err = curIndexer.UploadSrc(ctx)
 	PanicIfErr(err)
 	log.Println("indexer ready")
@@ -56,7 +60,11 @@ func Run(token string, src string, outputPath string, ctx context.Context) error
 	// line level diff
 	calcContext, cancel := context.WithCancel(ctx)
 	defer cancel()
-	curExtractor, err := extractor.NewDiffExtractor(&config)
+	curExtractor := &GitExtractor{
+		config:    &config,
+		apiClient: apiClient,
+	}
+
 	PanicIfErr(err)
 	diffMap, err := curExtractor.ExtractDiffMethods(calcContext)
 	PanicIfErr(err)
@@ -64,7 +72,7 @@ func Run(token string, src string, outputPath string, ctx context.Context) error
 
 	// 3. prepare data
 	client := GetClient(ClientGpt35)
-	client.SetToken(token)
+	client.SetToken(config.Token)
 	err = client.Prepare()
 	PanicIfErr(err)
 
@@ -97,9 +105,6 @@ It will called by:
 %s
 `, referencedCalls[0].Unit.Content)
 			}
-
-			apiClient, err := config.NewSibylClient()
-			PanicIfErr(err)
 
 			// params and returns
 			for _, each := range vertex.Parameters {
@@ -152,47 +157,18 @@ return me a code snippet only, without markdown wrapper, without any note.
 		}
 
 		// write to file
-		p := filepath.Join(outputPath, funcWithPath.Path)
+		p := filepath.Join(config.OutputDir, funcWithPath.Path)
 		dirPath := filepath.Dir(p)
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 			err := os.MkdirAll(dirPath, os.ModePerm)
 			PanicIfErr(err)
 		}
 
-		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", dirPath, filepath.Base(funcWithPath.Path), funcWithPath.Name), []byte(fmt.Sprintf(`
-<html>
-<body>
-<pre class="prettyprint">
-<code>
-%s
-</code>
-</pre>
-<script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
-</body>
-</html>
-`, htmlTemplate)), 0644)
+		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", dirPath, filepath.Base(funcWithPath.Path), funcWithPath.Name), []byte(fmt.Sprintf(subPageTemplate, htmlTemplate)), 0644)
 		PanicIfErr(err)
 	}
 
 	// generate index.html
-	indexTemplate := `
-	<!DOCTYPE html>
-	<html>
-	<head>
-		<title>GPT EST Result</title>
-	</head>
-	<body>
-		<h1>GPT EST Result</h1>
-		<ul>
-		{{range $filePath, $funcs := .}}
-			{{range $func := $funcs}}
-			<li><a href="{{ $filePath }}_{{ $func.Name }}.html">{{ $filePath }}_{{ $func.Name }}</a></li>
-			{{end}}
-		{{end}}
-		</ul>
-	</body>
-	</html>
-	`
 	tmpl, err := template.New("index").Parse(indexTemplate)
 	PanicIfErr(err)
 
@@ -200,14 +176,8 @@ return me a code snippet only, without markdown wrapper, without any note.
 	err = tmpl.Execute(&buf, fileCache)
 	PanicIfErr(err)
 
-	err = os.WriteFile(fmt.Sprintf("%s/index.html", outputPath), buf.Bytes(), 0644)
+	err = os.WriteFile(fmt.Sprintf("%s/index.html", config.OutputDir), buf.Bytes(), 0644)
 	PanicIfErr(err)
 
 	return nil
-}
-
-func PanicIfErr(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
