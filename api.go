@@ -164,7 +164,7 @@ return me a code snippet only, without markdown wrapper, without any note.
 			PanicIfErr(err)
 		}
 
-		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", dirPath, filepath.Base(funcWithPath.Path), funcWithPath.Name), []byte(fmt.Sprintf(subPageTemplate, htmlTemplate)), 0644)
+		err = os.WriteFile(fmt.Sprintf("%s/%s_%s.html", dirPath, filepath.Base(funcWithPath.Path), funcWithPath.Name), []byte(fmt.Sprintf(subPageTemplate, funcWithPath.Path, htmlTemplate)), 0644)
 		PanicIfErr(err)
 	}
 

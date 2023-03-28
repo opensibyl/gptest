@@ -6,7 +6,10 @@ import (
 )
 
 func TestApi(t *testing.T) {
-	err := Run("", ".", context.Background())
+	config := DefaultConfig()
+	config.Token = ""
+
+	err := Run(config, context.Background())
 	if err != nil {
 		panic(err)
 	}

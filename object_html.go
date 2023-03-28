@@ -3,6 +3,7 @@ package gptest
 const subPageTemplate = `
 <html>
 <body>
+<h1>%s</h1>
 <pre class="prettyprint">
 <code>
 %s
