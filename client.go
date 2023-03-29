@@ -2,7 +2,7 @@ package gptest
 
 type Client interface {
 	SetToken(token string)
-	Prepare() error
+	Prepare(promptFile string) error
 	Ask(string) (string, error)
 }
 

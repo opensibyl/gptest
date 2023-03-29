@@ -73,7 +73,7 @@ func Run(config SharedConfig, ctx context.Context) error {
 	// 3. prepare data
 	client := GetClient(ClientGpt35)
 	client.SetToken(config.Token)
-	err = client.Prepare()
+	err = client.Prepare(config.PromptFile)
 	PanicIfErr(err)
 
 	// 4. collect

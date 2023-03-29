@@ -4,26 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	gogpt "github.com/sashabaranov/go-openai"
 )
 
-type ChatGPTClient struct {
-	token  string
-	client *gogpt.Client
-	topics []string
-}
-
-func (c *ChatGPTClient) Prepare() error {
-	c.client = gogpt.NewClient(c.token)
-
-	// prompt
-	resp, err := c.client.CreateChatCompletion(context.Background(), gogpt.ChatCompletionRequest{
-		Model: gogpt.GPT3Dot5Turbo,
-		Messages: []gogpt.ChatCompletionMessage{
-			{
-				Role: `system`,
-				Content: fmt.Sprintf(`
+const defaultPrompt = `
 Here is a prompt:
 
 You are now a machine helping me write smoke test cases. 
@@ -32,7 +18,35 @@ No need for explanations. No any extra note.
 Always return a code snippet with markdown format only. One response for one case.
 
 Let's start from the next line.
-`),
+`
+
+type ChatGPTClient struct {
+	token  string
+	client *gogpt.Client
+	topics []string
+}
+
+func (c *ChatGPTClient) Prepare(promptFile string) error {
+	c.client = gogpt.NewClient(c.token)
+
+	var prompt string
+	if promptFile == "" {
+		prompt = defaultPrompt
+	} else {
+		contentBytes, err := os.ReadFile(promptFile)
+		if err != nil {
+			return err
+		}
+		prompt = string(contentBytes)
+	}
+
+	// prompt
+	resp, err := c.client.CreateChatCompletion(context.Background(), gogpt.ChatCompletionRequest{
+		Model: gogpt.GPT3Dot5Turbo,
+		Messages: []gogpt.ChatCompletionMessage{
+			{
+				Role:    `system`,
+				Content: prompt,
 			},
 		},
 	})

@@ -15,6 +15,7 @@ type SharedConfig struct {
 	Before      string    `json:"before"`
 	After       string    `json:"after"`
 	FileInclude string    `json:"fileInclude"`
+	PromptFile  string    `json:"promptFile"`
 }
 
 func DefaultConfig() SharedConfig {
@@ -26,6 +27,7 @@ func DefaultConfig() SharedConfig {
 		"http://127.0.0.1:9875",
 		"HEAD~1",
 		"HEAD",
+		"",
 		"",
 	}
 }
