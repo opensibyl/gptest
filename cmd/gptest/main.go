@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 
 	"github.com/opensibyl/gptest"
 )
@@ -18,10 +19,17 @@ func main() {
 	after := flag.String("after", config.After, "after")
 	fileInclude := flag.String("include", config.FileInclude, "file include regex")
 	// communication
-	promptFile := flag.String("promptFile", config.After, "promptFile file")
+	promptFile := flag.String("promptFile", config.PromptFile, "promptFile file")
 
 	flag.Parse()
 
+	// trying to read token from env
+	tokenFromEnv := os.Getenv("OPENAI_TOKEN")
+	if tokenFromEnv != "" {
+		*token = tokenFromEnv
+	}
+
+	// still empty
 	if *token == "" {
 		panic("token is empty")
 	}
