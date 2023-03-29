@@ -14,6 +14,7 @@ import (
 	"github.com/opensibyl/sibyl2"
 	"github.com/opensibyl/sibyl2/pkg/server"
 	"github.com/opensibyl/sibyl2/pkg/server/object"
+	"github.com/pkg/browser"
 )
 
 func Run(config SharedConfig, ctx context.Context) error {
@@ -176,8 +177,12 @@ return me a code snippet only, without markdown wrapper, without any note.
 	err = tmpl.Execute(&buf, fileCache)
 	PanicIfErr(err)
 
-	err = os.WriteFile(fmt.Sprintf("%s/index.html", config.OutputDir), buf.Bytes(), 0644)
+	indexFile := fmt.Sprintf("%s/index.html", config.OutputDir)
+	err = os.WriteFile(indexFile, buf.Bytes(), 0644)
 	PanicIfErr(err)
+
+	// it's ok
+	_ = browser.OpenFile(indexFile)
 
 	return nil
 }
